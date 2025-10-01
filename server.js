@@ -1,58 +1,72 @@
-const express = require('express')
-const dotenv = require('dotenv')
+const express = require('express');
+const dotenv = require('dotenv');
 const { MongoClient } = require('mongodb'); 
-const bodyparser = require('body-parser')
-const cors = require('cors')
+const bodyparser = require('body-parser');
+const cors = require('cors');
 
-dotenv.config()
+dotenv.config();
 
-
-// Connecting to the MongoDB Client
-const url = process.env.MONGO_URI;
-const client = new MongoClient(url);
-client.connect();
-
-// App & Database
-const dbName = process.env.DB_NAME 
-const app = express()
-const port = 3000 
+const app = express();
 
 // Middleware
-app.use(bodyparser.json())
+app.use(bodyparser.json());
 app.use(cors({
-    origin:["https://pass-op-client.vercel.app"],
-    methods:["GET","POST","PUT","DELETE"],
-    credentials:true
-        }));
+    origin: ["https://pass-op-client.vercel.app"],
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    credentials: true
+}));
 
+// Connect to MongoDB
+const url = process.env.MONGO_URI;
+const dbName = process.env.DB_NAME;
 
-// Get all the passwords
+let db;
+
+async function connectDB() {
+    try {
+        const client = new MongoClient(url);
+        await client.connect();
+        db = client.db(dbName);
+        console.log("✅ Connected to MongoDB");
+    } catch (err) {
+        console.error("❌ MongoDB connection failed:", err);
+        process.exit(1); // stop server if DB fails
+    }
+}
+
+// Routes
 app.get('/', async (req, res) => {
-    const db = client.db(dbName);
-    const collection = db.collection('passwords');
-    const findResult = await collection.find({}).toArray();
-    res.json(findResult)
-})
+    try {
+        const collection = db.collection('passwords');
+        const findResult = await collection.find({}).toArray();
+        res.json(findResult);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
 
-// Save a password
 app.post('/', async (req, res) => { 
-    const password = req.body
-    const db = client.db(dbName);
-    const collection = db.collection('passwords');
-    const findResult = await collection.insertOne(password);
-    res.send({success: true, result: findResult})
-})
+    try {
+        const collection = db.collection('passwords');
+        const result = await collection.insertOne(req.body);
+        res.send({ success: true, result });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
 
-// Delete a password by id
 app.delete('/', async (req, res) => { 
-    const password = req.body
-    const db = client.db(dbName);
-    const collection = db.collection('passwords');
-    const findResult = await collection.deleteOne(password);
-    res.send({success: true, result: findResult})
-})
+    try {
+        const collection = db.collection('passwords');
+        const result = await collection.deleteOne(req.body);
+        res.send({ success: true, result });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
 
-const PORT=process.env.PORT || 3000;
-app.listen(PORT, () => 
-    console.log(`Server running on port ${PORT}`)
-);
+// Start server only after DB connection
+const PORT = process.env.PORT || 3000;
+connectDB().then(() => {
+    app.listen(PORT, () => console.log(🚀 Server running on port ${PORT}));
+});
