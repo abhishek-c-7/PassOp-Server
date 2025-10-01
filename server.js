@@ -19,7 +19,11 @@ const port = 3000
 
 // Middleware
 app.use(bodyparser.json())
-app.use(cors())
+app.use(cors({
+    origin:["https://pass-op-client.vercel.app"],
+    methods:["GET","POST","PUT","DELETE"],
+    credentials:true
+        }));
 
 
 // Get all the passwords
